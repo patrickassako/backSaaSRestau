@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.modules.health import routes as health_routes
 from app.modules.restaurants import routes as restaurant_routes
+from app.modules.onboarding import routes as onboarding_routes
 
 app = FastAPI(
     title="Restaurant SaaS Backend",
@@ -24,6 +25,7 @@ app.add_middleware(
 # Include Routers
 app.include_router(health_routes.router, tags=["Health"])
 app.include_router(restaurant_routes.router)
+app.include_router(onboarding_routes.router)
 
 
 @app.get("/")

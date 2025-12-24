@@ -107,3 +107,26 @@ def get_restaurant_by_slug(slug: str) -> Optional[dict]:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database error: {str(e)}",
         )
+
+
+def user_has_restaurant(user_id: UUID) -> bool:
+    """
+    Checks if a user owns at least one restaurant.
+    Used for onboarding flow verification.
+    """
+    supabase = get_supabase_client()
+
+    try:
+        response = (
+            supabase.table("restaurants")
+            .select("id", count="exact")
+            .eq("owner_id", str(user_id))
+            .limit(1)
+            .execute()
+        )
+
+        return response.count is not None and response.count > 0
+
+    except Exception:
+        # In case of error, return False to be safe
+        return False
