@@ -8,6 +8,7 @@ from app.modules.restaurants.schemas import RestaurantCreate
 def create_restaurant(user_id: UUID, data: RestaurantCreate) -> dict:
     """
     Creates a new restaurant owned by the specified user.
+    Marks the user as onboarded after successful creation.
     """
     supabase = get_supabase_client()
 
@@ -32,8 +33,13 @@ def create_restaurant(user_id: UUID, data: RestaurantCreate) -> dict:
                 detail="Failed to create restaurant",
             )
 
+        # Mark user as onboarded after successful restaurant creation
+        _mark_user_onboarded(user_id)
+
         return response.data[0]
 
+    except HTTPException:
+        raise
     except Exception as e:
         # Handle unique constraint violation for slug
         if "duplicate key" in str(e).lower() or "unique" in str(e).lower():
@@ -45,6 +51,23 @@ def create_restaurant(user_id: UUID, data: RestaurantCreate) -> dict:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database error: {str(e)}",
         )
+
+
+def _mark_user_onboarded(user_id: UUID) -> None:
+    """
+    Updates the user's profile to mark them as onboarded.
+    Called after successful restaurant creation.
+    """
+    supabase = get_supabase_client()
+
+    try:
+        supabase.table("profiles").update({"is_onboarded": True}).eq(
+            "id", str(user_id)
+        ).execute()
+    except Exception:
+        # Log error but don't fail the restaurant creation
+        # The onboarding status can be fixed later
+        pass
 
 
 def get_my_restaurants(user_id: UUID) -> List[dict]:
