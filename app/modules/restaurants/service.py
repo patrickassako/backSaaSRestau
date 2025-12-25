@@ -16,11 +16,16 @@ def create_restaurant(user_id: UUID, data: RestaurantCreate) -> dict:
         "name": data.name,
         "slug": data.slug,
         "owner_id": str(user_id),
+        "description": data.description,
+        "cuisine_type": data.cuisine_type,
         "phone": data.phone,
+        "whatsapp": data.whatsapp,
         "email": data.email,
         "address": data.address,
         "city": data.city,
         "country": data.country,
+        "logo_url": data.logo_url,
+        "primary_color": data.primary_color,
         "is_active": True,
     }
 
