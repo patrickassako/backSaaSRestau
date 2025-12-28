@@ -180,7 +180,7 @@ def get_public_restaurant_by_slug(slug: str) -> Optional[dict]:
     Retourne un restaurant public par son slug.
     
     Accessible au rôle public (anon) via les policies RLS.
-    Vérifie que le restaurant est actif ET onboarded.
+    Vérifie uniquement que le restaurant est actif (is_active=True).
     
     Args:
         slug: Slug unique du restaurant
@@ -190,15 +190,14 @@ def get_public_restaurant_by_slug(slug: str) -> Optional[dict]:
         Retourne None si aucun restaurant trouvé
         
     Raises:
-        HTTPException 404: Si le restaurant n'existe pas, n'est pas actif,
-                          ou n'est pas onboarded
+        HTTPException 404: Si le restaurant n'existe pas ou n'est pas actif
         HTTPException 500: En cas d'erreur base de données
     """
     supabase = get_supabase_client()
 
     try:
         # Sélectionner uniquement les champs publics
-        # Vérifier is_active=True ET is_onboarded=True
+        # Vérifier is_active=True uniquement
         response = (
             supabase.table("restaurants")
             .select(
@@ -207,7 +206,6 @@ def get_public_restaurant_by_slug(slug: str) -> Optional[dict]:
             )
             .eq("slug", slug)
             .eq("is_active", True)
-            .eq("is_onboarded", True)
             .single()
             .execute()
         )
