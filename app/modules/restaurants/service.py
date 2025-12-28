@@ -1,3 +1,7 @@
+"""
+Service pour la gestion des restaurants.
+Fournit les opérations CRUD et les fonctions publiques.
+"""
 from typing import List, Optional
 from uuid import UUID
 from fastapi import HTTPException, status
@@ -7,8 +11,20 @@ from app.modules.restaurants.schemas import RestaurantCreate
 
 def create_restaurant(user_id: UUID, data: RestaurantCreate) -> dict:
     """
-    Creates a new restaurant owned by the specified user.
-    Marks the user as onboarded after successful creation.
+    Crée un nouveau restaurant appartenant à l'utilisateur spécifié.
+    Marque l'utilisateur comme "onboarded" après la création.
+    
+    Args:
+        user_id: ID de l'utilisateur propriétaire
+        data: Données du restaurant
+        
+    Returns:
+        Restaurant créé
+        
+    Raises:
+        HTTPException 400: Si la création échoue
+        HTTPException 409: Si le slug existe déjà
+        HTTPException 500: En cas d'erreur base de données
     """
     supabase = get_supabase_client()
 
@@ -60,8 +76,11 @@ def create_restaurant(user_id: UUID, data: RestaurantCreate) -> dict:
 
 def _mark_user_onboarded(user_id: UUID) -> None:
     """
-    Updates the user's profile to mark them as onboarded.
-    Called after successful restaurant creation.
+    Met à jour le profil utilisateur pour le marquer comme "onboarded".
+    Appelé après la création réussie d'un restaurant.
+    
+    Args:
+        user_id: ID de l'utilisateur
     """
     supabase = get_supabase_client()
 
@@ -77,7 +96,16 @@ def _mark_user_onboarded(user_id: UUID) -> None:
 
 def get_my_restaurants(user_id: UUID) -> List[dict]:
     """
-    Returns all restaurants owned by the specified user.
+    Retourne tous les restaurants appartenant à l'utilisateur.
+    
+    Args:
+        user_id: ID de l'utilisateur propriétaire
+        
+    Returns:
+        Liste des restaurants
+        
+    Raises:
+        HTTPException 500: En cas d'erreur base de données
     """
     supabase = get_supabase_client()
 
@@ -100,8 +128,18 @@ def get_my_restaurants(user_id: UUID) -> List[dict]:
 
 def get_restaurant_by_slug(slug: str) -> Optional[dict]:
     """
-    Returns a restaurant by its slug.
-    Used for public access - owner_id should be stripped by the route.
+    Retourne un restaurant par son slug (endpoint authentifié).
+    Utilisé pour l'accès propriétaire - retourne toutes les données.
+    
+    Args:
+        slug: Slug unique du restaurant
+        
+    Returns:
+        Données complètes du restaurant
+        
+    Raises:
+        HTTPException 404: Si le restaurant n'existe pas ou n'est pas actif
+        HTTPException 500: En cas d'erreur base de données
     """
     supabase = get_supabase_client()
 
@@ -137,10 +175,75 @@ def get_restaurant_by_slug(slug: str) -> Optional[dict]:
         )
 
 
+def get_public_restaurant_by_slug(slug: str) -> Optional[dict]:
+    """
+    Retourne un restaurant public par son slug.
+    
+    Accessible au rôle public (anon) via les policies RLS.
+    Vérifie que le restaurant est actif ET onboarded.
+    
+    Args:
+        slug: Slug unique du restaurant
+        
+    Returns:
+        Données publiques du restaurant (sans owner_id ni données sensibles)
+        Retourne None si aucun restaurant trouvé
+        
+    Raises:
+        HTTPException 404: Si le restaurant n'existe pas, n'est pas actif,
+                          ou n'est pas onboarded
+        HTTPException 500: En cas d'erreur base de données
+    """
+    supabase = get_supabase_client()
+
+    try:
+        # Sélectionner uniquement les champs publics
+        # Vérifier is_active=True ET is_onboarded=True
+        response = (
+            supabase.table("restaurants")
+            .select(
+                "id, name, slug, description, cuisine_type, logo_url, primary_color, "
+                "address, city, country, phone, whatsapp, email"
+            )
+            .eq("slug", slug)
+            .eq("is_active", True)
+            .eq("is_onboarded", True)
+            .single()
+            .execute()
+        )
+
+        if not response.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Restaurant non trouvé ou non disponible",
+            )
+
+        return response.data
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        if "no rows" in str(e).lower() or "0 rows" in str(e).lower():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Restaurant non trouvé ou non disponible",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur base de données : {str(e)}",
+        )
+
+
 def user_has_restaurant(user_id: UUID) -> bool:
     """
-    Checks if a user owns at least one restaurant.
-    Used for onboarding flow verification.
+    Vérifie si un utilisateur possède au moins un restaurant.
+    Utilisé pour la vérification du flux d'onboarding.
+    
+    Args:
+        user_id: ID de l'utilisateur
+        
+    Returns:
+        True si l'utilisateur possède au moins un restaurant
     """
     supabase = get_supabase_client()
 
