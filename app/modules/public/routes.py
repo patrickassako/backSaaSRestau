@@ -3,6 +3,7 @@ Routes publiques accessibles sans authentification.
 Utilisées par le site public Lovable pour afficher les restaurants et menus.
 """
 from fastapi import APIRouter
+from fastapi.responses import RedirectResponse
 from app.modules.public import service
 from app.modules.public.schemas import RestaurantPublicInfo, PublicMenuResponse
 
@@ -36,49 +37,43 @@ async def get_public_menu(slug: str):
     
     Retourne les catégories, plats et accompagnements structurés.
     
-    **Exemple de réponse** :
-    ```json
-    {
-        "restaurant": {
-            "name": "Le Petit Bistro",
-            "slug": "le-petit-bistro",
-            "logo_url": "https://...",
-            "primary_color": "#FF5733",
-            "address": "123 Main Street",
-            "city": "Paris",
-            "country": "France",
-            "phone": "+33123456789",
-            "whatsapp": "+33123456789"
-        },
-        "menu": [
-            {
-                "category_id": "uuid",
-                "name": "Plats principaux",
-                "items": [
-                    {
-                        "id": "uuid",
-                        "name": "Poulet braisé",
-                        "description": "Poulet aux épices africaines",
-                        "price": 3500,
-                        "image_url": "https://...",
-                        "sides": [
-                            {"id": "uuid", "name": "Plantain", "extra_price": 0},
-                            {"id": "uuid", "name": "Frites", "extra_price": 500}
-                        ]
-                    }
-                ]
-            }
-        ]
-    }
-    ```
-    
     **Exemple curl** :
     ```bash
     curl -X GET "https://api.example.com/public/restaurants/le-petit-bistro/menu"
     ```
-    
-    **Codes d'erreur** :
-    - 404 : Restaurant non trouvé ou inactif
     """
     menu = service.get_public_menu_by_slug(slug)
     return menu
+
+
+@router.get("/images/{image_path:path}")
+async def get_public_image(image_path: str):
+    """
+    Sert les images publiques des restaurants (plats, logos, accompagnements).
+    
+    - **Authentification requise** : Non
+    - **Comportement** : Redirige vers une signed URL Supabase (HTTP 302)
+    - **Durée signed URL** : 1 heure (3600 secondes)
+    
+    **Chemins autorisés** :
+    - menu-images/{user_id}/{filename}
+    - logos/{user_id}/{filename}
+    - avatars/{user_id}/{filename}
+    
+    **Exemple d'utilisation** :
+    ```html
+    <img src="https://api.example.com/public/images/menu-images/user123/image.jpg" />
+    ```
+    
+    **Exemple curl** :
+    ```bash
+    curl -L "https://api.example.com/public/images/menu-images/user123/image.jpg"
+    ```
+    
+    **Notes** :
+    - Le navigateur suit automatiquement la redirection 302
+    - Les images sont mises en cache par le navigateur
+    - Pour Lovable, utilisez directement cette URL dans les balises img
+    """
+    signed_url = service.get_public_image_signed_url(image_path)
+    return RedirectResponse(url=signed_url, status_code=302)
