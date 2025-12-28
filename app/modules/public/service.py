@@ -1,3 +1,7 @@
+"""
+Service pour les endpoints publics.
+Tous les endpoints de ce module sont accessibles sans authentification.
+"""
 from typing import Optional
 from fastapi import HTTPException, status
 from app.core.supabase import get_supabase_client
@@ -5,8 +9,16 @@ from app.core.supabase import get_supabase_client
 
 def get_public_restaurant_by_slug(slug: str) -> Optional[dict]:
     """
-    Returns public restaurant information by slug.
-    Only returns fields safe for public exposure.
+    Retourne les informations publiques d'un restaurant par son slug.
+    
+    Args:
+        slug: Slug unique du restaurant
+        
+    Returns:
+        Données publiques du restaurant
+        
+    Raises:
+        HTTPException 404: Si le restaurant n'existe pas ou n'est pas actif
     """
     supabase = get_supabase_client()
 
@@ -44,16 +56,32 @@ def get_public_restaurant_by_slug(slug: str) -> Optional[dict]:
 
 def get_public_menu_by_slug(slug: str) -> dict:
     """
-    Returns the full public menu for a restaurant.
-    Includes categories, items, and sides.
+    Retourne le menu complet public d'un restaurant.
+    
+    Accessible sans authentification (JWT non requis).
+    Inclut les catégories, plats et accompagnements.
+    
+    Args:
+        slug: Slug unique du restaurant
+        
+    Returns:
+        Dictionnaire structuré avec :
+        - restaurant: {name, slug, logo_url, primary_color, address, phone, whatsapp}
+        - menu: liste des catégories avec leurs plats et accompagnements
+        
+    Raises:
+        HTTPException 404: Si le restaurant n'existe pas ou n'est pas actif
+        HTTPException 500: En cas d'erreur base de données
     """
     supabase = get_supabase_client()
 
-    # Get restaurant info
+    # ========================================
+    # 1. Récupérer les infos du restaurant
+    # ========================================
     try:
         restaurant = (
             supabase.table("restaurants")
-            .select("id, name, slug, primary_color")
+            .select("id, name, slug, logo_url, primary_color, address, city, country, phone, whatsapp")
             .eq("slug", slug)
             .eq("is_active", True)
             .single()
@@ -63,7 +91,7 @@ def get_public_menu_by_slug(slug: str) -> dict:
         if not restaurant.data:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Restaurant not found",
+                detail="Restaurant non trouvé",
             )
 
     except HTTPException:
@@ -72,16 +100,18 @@ def get_public_menu_by_slug(slug: str) -> dict:
         if "no rows" in str(e).lower() or "0 rows" in str(e).lower():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Restaurant not found",
+                detail="Restaurant non trouvé",
             )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Database error: {str(e)}",
+            detail=f"Erreur base de données : {str(e)}",
         )
 
     restaurant_id = restaurant.data["id"]
 
-    # Get categories
+    # ========================================
+    # 2. Récupérer les catégories actives
+    # ========================================
     try:
         categories_response = (
             supabase.table("menu_categories")
@@ -97,7 +127,9 @@ def get_public_menu_by_slug(slug: str) -> dict:
     except Exception:
         categories = []
 
-    # Get items with sides
+    # ========================================
+    # 3. Récupérer les plats disponibles avec leurs accompagnements
+    # ========================================
     try:
         items_response = (
             supabase.table("menu_items")
@@ -113,22 +145,29 @@ def get_public_menu_by_slug(slug: str) -> dict:
     except Exception:
         items = []
 
-    # Build response structure
-    categories_with_items = []
+    # ========================================
+    # 4. Construire la structure de réponse
+    # ========================================
+    menu_structure = []
+    
     for category in categories:
+        # Filtrer les plats de cette catégorie
         category_items = []
+        
         for item in items:
             if item["category_id"] == category["id"]:
-                # Sort sides by position
+                # Trier les accompagnements par position
                 sides = sorted(
-                    item.get("menu_item_sides", []),
+                    item.get("menu_item_sides", []) or [],
                     key=lambda x: x.get("position", 0)
                 )
+                
+                # Formater le plat
                 category_items.append({
                     "id": item["id"],
                     "name": item["name"],
                     "description": item.get("description"),
-                    "base_price": item["base_price"],
+                    "price": item["base_price"],  # Renommé de base_price à price
                     "image_url": item.get("image_url"),
                     "sides": [
                         {
@@ -140,17 +179,27 @@ def get_public_menu_by_slug(slug: str) -> dict:
                     ]
                 })
 
-        categories_with_items.append({
-            "id": category["id"],
+        # Ajouter la catégorie avec ses plats
+        menu_structure.append({
+            "category_id": category["id"],
             "name": category["name"],
             "items": category_items
         })
 
+    # ========================================
+    # 5. Retourner la réponse structurée
+    # ========================================
     return {
         "restaurant": {
             "name": restaurant.data["name"],
             "slug": restaurant.data["slug"],
+            "logo_url": restaurant.data.get("logo_url"),
             "primary_color": restaurant.data.get("primary_color"),
+            "address": restaurant.data.get("address"),
+            "city": restaurant.data.get("city"),
+            "country": restaurant.data.get("country"),
+            "phone": restaurant.data.get("phone"),
+            "whatsapp": restaurant.data.get("whatsapp"),
         },
-        "categories": categories_with_items
+        "menu": menu_structure
     }
