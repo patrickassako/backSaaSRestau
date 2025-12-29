@@ -88,8 +88,8 @@ class OrderStatusUpdate(BaseModel):
     """Schema for updating order status."""
     status: str = Field(
         ...,
-        pattern="^(pending|confirmed|delivered|canceled)$",
-        description="Order status: pending, confirmed, delivered, or canceled"
+        pattern="^(pending|confirmed|preparing|ready|delivering|completed|canceled)$",
+        description="Order status: pending, confirmed, preparing, ready, delivering, completed, canceled"
     )
 
     class Config:
@@ -136,6 +136,19 @@ class OrderResponse(BaseModel):
     delivery_note: Optional[str] = None
     total_amount: float
     status: str
+    created_at: datetime
+    items: List[OrderItemResponse] = []
+
+    class Config:
+        from_attributes = True
+
+
+class PublicOrderResponse(BaseModel):
+    """Schema for public order tracking response."""
+    order_code: str
+    status: str
+    total_price: float
+    delivery_address: str
     created_at: datetime
     items: List[OrderItemResponse] = []
 

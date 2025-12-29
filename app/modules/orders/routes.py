@@ -12,6 +12,7 @@ from app.modules.orders.schemas import (
     OrderCreate,
     OrderStatusUpdate,
     OrderResponse,
+    PublicOrderResponse,
 )
 
 router = APIRouter(tags=["Orders"])
@@ -33,6 +34,17 @@ async def create_order(data: OrderCreate):
     Returns the created order with calculated total.
     """
     order = service.create_order(data)
+    return order
+
+
+@router.get("/public/orders/{order_code}", response_model=PublicOrderResponse)
+async def get_order_by_code(order_code: str):
+    """
+    Track an order by its short code (first 8 characters of UUID).
+    
+    This endpoint is PUBLIC.
+    """
+    order = service.get_order_by_code(order_code)
     return order
 
 

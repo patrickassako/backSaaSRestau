@@ -12,7 +12,8 @@ from app.modules.orders.schemas import OrderCreate, OrderStatusUpdate
 
 
 # Valid order statuses
-VALID_STATUSES = {"pending", "confirmed", "delivered", "canceled"}
+# Valid order statuses
+VALID_STATUSES = {"pending", "confirmed", "preparing", "ready", "delivering", "completed", "canceled"}
 
 
 def verify_restaurant_ownership(user_id: UUID, restaurant_id: UUID) -> bool:
@@ -466,4 +467,105 @@ def update_order_status(user_id: UUID, order_id: UUID, data: OrderStatusUpdate) 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error updating order: {str(e)}"
+        )
+
+
+def get_order_by_code(code: str) -> dict:
+    """
+    Get order details by short code (first 8 chars of UUID).
+    
+    This is a public method for order tracking.
+    """
+    if not code or len(code) != 8:
+         raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid order code format"
+        )
+
+    supabase = get_supabase_client()
+
+    try:
+        # Find order by ID prefix match
+        # We simulate checking LEFT(id, 8) by using the LIKE operator on the ID column
+        response = (
+            supabase.table("orders")
+            .select("*")
+            .like("id", f"{code}%")
+            .execute()
+        )
+
+        if not response.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Order not found"
+            )
+            
+        # Take the first match
+        order = response.data[0]
+        # Check that the found order actually matches the code (redundant if LIKE works, but safe)
+        if not str(order["id"]).startswith(code):
+             raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Order not found"
+            )
+
+        order_id = order["id"]
+        
+        # Determine status (using the same format as valid statuses)
+        # Assuming the DB status is one of the valid ones
+        
+        # Fetch items
+        items_response = (
+            supabase.table("order_items")
+            .select("*, menu_items(name)")
+            .eq("order_id", order_id)
+            .execute()
+        )
+        
+        items = items_response.data or []
+        
+        # Prepare items with sides
+        final_items = []
+        for item in items:
+            sides_response = (
+                supabase.table("order_item_sides")
+                .select("*, menu_item_sides(name)")
+                .eq("order_item_id", item["id"])
+                .execute()
+            )
+            
+            sides = sides_response.data or []
+            
+            cleaned_sides = []
+            for side in sides:
+                if side.get("menu_item_sides"):
+                    side["side_name"] = side["menu_item_sides"]["name"]
+                if "menu_item_sides" in side:
+                    del side["menu_item_sides"]
+                cleaned_sides.append(side)
+
+            item["sides"] = cleaned_sides
+            
+            if item.get("menu_items"):
+                item["item_name"] = item["menu_items"]["name"]
+            if "menu_items" in item:
+                del item["menu_items"]
+            
+            final_items.append(item)
+            
+        return {
+            "order_code": code,
+            "status": order["status"],
+            "total_price": order["total_amount"],
+            "delivery_address": order["delivery_address"],
+            "created_at": order["created_at"],
+            "items": final_items
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching order: {str(e)}"
         )
