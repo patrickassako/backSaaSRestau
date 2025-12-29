@@ -486,11 +486,18 @@ def get_order_by_code(code: str) -> dict:
 
     try:
         # Find order by ID prefix match
-        # We simulate checking LEFT(id, 8) by using the LIKE operator on the ID column
+        # Since 'id' is a UUID column, valid LIKE operations require casting to text.
+        # However, a cleaner and more performant way for UUID prefix is using range queries.
+        
+        # Construct the UUID range for the given 8-char prefix
+        start_uuid = f"{code}-0000-0000-0000-000000000000"
+        end_uuid = f"{code}-ffff-ffff-ffff-ffffffffffff"
+
         response = (
             supabase.table("orders")
             .select("*")
-            .like("id", f"{code}%")
+            .gte("id", start_uuid)
+            .lte("id", end_uuid)
             .execute()
         )
 
