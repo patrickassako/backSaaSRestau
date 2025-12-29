@@ -10,6 +10,7 @@ from app.modules.menu_categories import routes as menu_category_routes
 from app.modules.menu_items import routes as menu_item_routes
 from app.modules.menu_sides import routes as menu_side_routes
 from app.modules.sides import routes as sides_routes
+from app.modules.orders import routes as order_routes
 
 app = FastAPI(
     title="Restaurant SaaS Backend",
@@ -40,6 +41,7 @@ app.include_router(menu_category_routes.router)
 app.include_router(menu_item_routes.router)
 app.include_router(menu_side_routes.router)
 app.include_router(sides_routes.router)
+app.include_router(order_routes.router)
 
 
 @app.get("/")
