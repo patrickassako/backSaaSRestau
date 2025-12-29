@@ -195,6 +195,8 @@ def create_order(data: OrderCreate) -> dict:
             "restaurant_id": str(data.restaurant_id),
             "customer_name": data.customer_name,
             "customer_phone": data.customer_phone,
+            "delivery_address": data.delivery_address,
+            "delivery_note": data.delivery_note,
             "total_amount": 0,  # Will be updated after calculating
             "status": "pending"
         }

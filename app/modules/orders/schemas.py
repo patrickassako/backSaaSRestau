@@ -52,6 +52,8 @@ class OrderCreate(BaseModel):
     restaurant_id: UUID
     customer_name: str = Field(..., min_length=1, max_length=100)
     customer_phone: str = Field(..., min_length=8, max_length=20)
+    delivery_address: str = Field(..., min_length=5, description="Delivery address is required")
+    delivery_note: Optional[str] = None
     items: List[OrderItemCreate] = Field(..., min_length=1)
 
     class Config:
@@ -60,6 +62,8 @@ class OrderCreate(BaseModel):
                 "restaurant_id": "123e4567-e89b-12d3-a456-426614174000",
                 "customer_name": "Patrick Essomba",
                 "customer_phone": "+237699000000",
+                "delivery_address": "Douala, Akwa, Rue de la Joie",
+                "delivery_note": "Appeler en arrivant",
                 "items": [
                     {
                         "menu_item_id": "123e4567-e89b-12d3-a456-426614174001",
@@ -125,6 +129,8 @@ class OrderResponse(BaseModel):
     restaurant_id: UUID
     customer_name: str
     customer_phone: str
+    delivery_address: str
+    delivery_note: Optional[str] = None
     total_amount: float
     status: str
     created_at: datetime
