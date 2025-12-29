@@ -12,13 +12,15 @@ from decimal import Decimal
 
 class OrderSideCreate(BaseModel):
     """Schema for selecting a side/accompaniment for an order item."""
-    menu_item_side_id: UUID
+    menu_item_side_id: UUID = Field(..., alias="id")
     extra_price: Decimal = Field(..., ge=0, description="Extra price for this side")
 
     class Config:
+        populate_by_name = True
+        extra = "ignore"
         json_schema_extra = {
             "example": {
-                "menu_item_side_id": "123e4567-e89b-12d3-a456-426614174002",
+                "id": "123e4567-e89b-12d3-a456-426614174002",
                 "extra_price": 500
             }
         }
@@ -32,6 +34,7 @@ class OrderItemCreate(BaseModel):
     sides: List[OrderSideCreate] = Field(default_factory=list)
 
     class Config:
+        extra = "ignore"
         json_schema_extra = {
             "example": {
                 "menu_item_id": "123e4567-e89b-12d3-a456-426614174001",
@@ -39,7 +42,7 @@ class OrderItemCreate(BaseModel):
                 "price": 3500,
                 "sides": [
                     {
-                        "menu_item_side_id": "123e4567-e89b-12d3-a456-426614174002",
+                        "id": "123e4567-e89b-12d3-a456-426614174002",
                         "extra_price": 500
                     }
                 ]
