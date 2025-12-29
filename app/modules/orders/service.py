@@ -361,14 +361,16 @@ def get_restaurant_orders(user_id: UUID, restaurant_id: UUID) -> List[dict]:
                 for side in sides:
                     if side.get("menu_item_sides"):
                         side["side_name"] = side["menu_item_sides"]["name"]
-                    del side["menu_item_sides"] if "menu_item_sides" in side else None
+                    if "menu_item_sides" in side:
+                        del side["menu_item_sides"]
 
                 item["sides"] = sides
                 
                 # Flatten item data
                 if item.get("menu_items"):
                     item["item_name"] = item["menu_items"]["name"]
-                del item["menu_items"] if "menu_items" in item else None
+                if "menu_items" in item:
+                    del item["menu_items"]
 
             order["items"] = items
 
