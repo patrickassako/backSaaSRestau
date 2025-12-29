@@ -235,7 +235,8 @@ def create_order(data: OrderCreate) -> dict:
                 "order_id": order_id,
                 "menu_item_id": str(item.menu_item_id),
                 "quantity": item.quantity,
-                "price": float(item.price)
+                "price": float(item.price),
+                "total_price": float(item_total)
             }
 
             order_item_resp = supabase.table("order_items").insert(order_item_data).execute()
